@@ -12,7 +12,6 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 const MIN_PLAYERS = 6;
-const MAX_PLAYERS = 10;
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, "data", "mafia.db");
 
 const db = new Database(DB_PATH);
@@ -147,7 +146,7 @@ app.get("/api/me", (req, res) => {
   if (!u || u.is_banned) return req.session.destroy(() => res.json({ user: null }));
   res.json({ user: userPublic(u) });
 });
-app.get("/api/site", (req, res) => res.json({ announcement: getSetting("announcement"), minPlayers: MIN_PLAYERS, maxPlayers: MAX_PLAYERS }));
+app.get("/api/site", (req, res) => res.json({ announcement: getSetting("announcement"), minPlayers: MIN_PLAYERS, maxPlayers: null }));
 
 const rooms = new Map();
 function publicRoom(r) {
@@ -156,7 +155,7 @@ function publicRoom(r) {
     host: r.host,
     started: r.started,
     minPlayers: MIN_PLAYERS,
-    maxPlayers: MAX_PLAYERS,
+    maxPlayers: null,
     players: [...r.players.values()].map(p => ({ id: p.id, name: p.name, alive: p.alive }))
   };
 }
@@ -330,7 +329,6 @@ io.on("connection", socket => {
     const r = rooms.get(code);
     if (!r) return ack?.({ ok: false, error: "الغرفة غير موجودة" });
     if (r.started) return ack?.({ ok: false, error: "بدأت الجولة بالفعل" });
-    if (r.players.size >= MAX_PLAYERS) return ack?.({ ok: false, error: "الغرفة ممتلئة" });
     removeSocketFromRoom(socket);
     r.players.set(socket.id, { id: socket.id, userId, name: username, alive: true, role: null });
     socket.join(code);
@@ -346,7 +344,7 @@ io.on("connection", socket => {
     if (r.players.size < MIN_PLAYERS) return ack?.({ ok: false, error: `يلزم ${MIN_PLAYERS} لاعبين على الأقل لبدء الجولة` });
 
     const ps = [...r.players.values()].sort(() => Math.random() - 0.5);
-    const mafiaCount = ps.length >= 8 ? 2 : 1;
+    const mafiaCount = Math.max(1, Math.floor(ps.length / 4));
     ps.forEach((p, i) => {
       p.role = i < mafiaCount ? "mafia" : i === mafiaCount ? "doctor" : "citizen";
       p.alive = true;
