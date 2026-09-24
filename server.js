@@ -193,7 +193,7 @@ function disconnectUserSockets(userId, message = "تم تسجيل خروجك م�
   }
 }
 
-app.get("/admin", requireAdmin, (req, res) => res.sendFile(path.join(__dirname, "admin.html")));
+app.get("/admin", (req, res) => res.sendFile(path.join(__dirname, "admin.html")));
 
 app.get("/api/admin/overview", requireAdmin, (req, res) => {
   const totals = db.prepare(`SELECT COUNT(*) totalUsers,
@@ -209,7 +209,7 @@ app.get("/api/admin/overview", requireAdmin, (req, res) => {
     connectedSockets: io.engine.clientsCount,
     announcement: getSetting("announcement"),
     minPlayers: MIN_PLAYERS,
-    maxPlayers: MAX_PLAYERS
+    maxPlayers: null
   });
 });
 
