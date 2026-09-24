@@ -5,29 +5,27 @@
 <body>
 <div class="smoke"></div>
 <header><a class="brand" href="#"><img src="assets/logo.svg"><span>MAFIA <small>لعبة المافيا</small></span></a>
-<nav><button class="ghost" id="authBtn">تسجيل الدخول</button><button class="ghost hidden" id="logoutBtn">خروج</button></nav></header>
+<nav><a class="ghost hidden" id="adminBtn" href="/admin" style="text-decoration:none;margin-left:8px">الإدارة</a><button class="ghost" id="authBtn">تسجيل الدخول</button><button class="ghost hidden" id="logoutBtn">خروج</button></nav></header>
 <main>
+<div id="siteAnnouncement" class="hidden" style="margin:8px 0 16px;padding:12px 16px;border-radius:14px;background:#2e0d14;border:1px solid #7e1d2b;color:#ffd9dc;text-align:center;font-weight:700"></div>
 <section class="hero">
  <div class="heroCopy"><span class="eyebrow">لعبة اجتماعية • صوت مباشر • أونلاين</span><h1>من الكاذب<br><em>بينكم؟</em></h1>
  <p>أنشئ غرفة، ادعُ أصدقاءك، تحدثوا بالصوت واكتشفوا المافيا قبل فوات الأوان.</p>
  <div class="actions"><button class="primary" id="createBtn">إنشاء غرفة</button><button class="secondary" id="joinOpen">دخول بكود</button></div>
- <div class="stats"><span><b>3–10</b> لاعبين</span><span><b>LIVE</b> صوت مباشر</span><span><b>∞</b> جولات</span></div></div>
+ <div class="stats"><span><b>6–10</b> لاعبين</span><span><b>LIVE</b> صوت مباشر</span><span><b>∞</b> جولات</span></div></div>
  <div class="poster"><img src="assets/hero.svg"><div class="posterTag">الثقة قد تقتلك</div></div>
 </section>
 <section class="features"><article><img src="assets/night-city.svg"><div><b>مدينة لا تنام</b><p>واجهة سينمائية متجاوبة لكل الشاشات.</p></div></article>
 <article><img src="assets/red-room.svg"><div><b>غرف خاصة</b><p>كود سريع لمشاركة الجولة مع أصدقائك.</p></div></article>
 <article><img src="assets/good.svg"><div><b>أدوار سرية</b><p>مافيا، طبيب ومواطنون مع توزيع تلقائي.</p></div></article></section>
 </main>
-
 <div class="modal hidden" id="authModal"><div class="panel"><button class="x" data-close>×</button><img class="miniLogo" src="assets/logo.svg">
 <div class="tabs"><button class="active" data-tab="login">تسجيل دخول</button><button data-tab="register">إنشاء حساب</button></div>
 <form id="authForm"><input id="username" autocomplete="username" placeholder="اسم المستخدم" minlength="3" required>
 <input id="password" type="password" autocomplete="current-password" placeholder="كلمة المرور" minlength="6" required>
 <button class="primary wide" type="submit">متابعة</button><p class="error" id="authError"></p></form></div></div>
-
 <div class="modal hidden" id="joinModal"><div class="panel"><button class="x" data-close>×</button><h2>دخول إلى غرفة</h2>
 <input id="roomCode" maxlength="5" placeholder="ABCDE"><button class="primary wide" id="joinBtn">دخول</button></div></div>
-
 <section class="game hidden" id="game">
 <div class="gameTop"><div><span>رمز الغرفة</span><button id="copyCode" class="code">-----</button></div><div class="gameActions"><button id="voiceBtn" class="secondary">🎙 تشغيل الصوت</button><button id="startBtn" class="primary">ابدأ الجولة</button></div></div>
 <div class="role hidden" id="roleBox"></div>
