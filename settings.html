@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#09080d">
+<title>إعدادات مافيا</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+.settingsWrap{max-width:980px;margin:auto;padding:28px 20px 70px}
+.settingsHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.settingsHead a{text-decoration:none;color:#fff}
+.settingsGrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.settingCard{background:#0e0c10;border:1px solid #ffffff12;border-radius:20px;padding:20px}
+.settingCard h2{margin:0 0 6px}.settingCard p{color:#918784;margin:0 0 15px}
+.statRow{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.stat{background:#09080b;border:1px solid #ffffff0c;border-radius:14px;padding:14px}.stat b{font-size:24px;display:block}
+.field{margin:10px 0}.field label{display:block;color:#aaa;font-size:13px;margin-bottom:5px}
+select{width:100%;background:#09080b;border:1px solid #ffffff17;color:#fff;border-radius:12px;padding:14px}
+.toggle{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid #ffffff0b}
+.toggle input{width:auto;transform:scale(1.2)}
+.success{color:#56d991;min-height:22px}.error{color:#ff6c78;min-height:22px}
+@media(max-width:760px){.settingsGrid{grid-template-columns:1fr}.settingsHead{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="settingsWrap">
+  <div class="settingsHead">
+    <div><span class="eyebrow">حسابك</span><h1>الإعدادات</h1></div>
+    <a class="ghost" href="/">العودة للموقع</a>
+  </div>
+
+  <div class="settingsGrid">
+    <section class="settingCard">
+      <h2>الملف الشخصي</h2>
+      <p>عدّل اسمك الذي يظهر داخل الغرف.</p>
+      <div class="statRow">
+        <div class="stat"><span>الألعاب</span><b id="games">0</b></div>
+        <div class="stat"><span>الفوز</span><b id="wins">0</b></div>
+      </div>
+      <form id="profileForm">
+        <div class="field"><label>اسم المستخدم</label><input id="username" minlength="3" maxlength="24" required></div>
+        <button class="primary wide">حفظ الاسم</button>
+        <div id="profileMsg" class="success"></div>
+      </form>
+    </section>
+
+    <section class="settingCard">
+      <h2>المظهر وتجربة اللعب</h2>
+      <p>اختر شكل الموقع وإعدادات الراحة.</p>
+      <div class="field"><label>الثيم</label>
+        <select id="theme">
+          <option value="dark">داكن</option>
+          <option value="midnight">منتصف الليل</option>
+          <option value="red">أحمر مافيا</option>
+        </select>
+      </div>
+      <div class="toggle"><span>تقليل الحركة والمؤثرات</span><input id="reduceMotion" type="checkbox"></div>
+      <div class="toggle"><span>أصوات التنبيهات</span><input id="soundsEnabled" type="checkbox" checked></div>
+      <button id="savePrefs" class="primary wide">حفظ التفضيلات</button>
+      <div id="prefsMsg" class="success"></div>
+    </section>
+
+    <section class="settingCard">
+      <h2>الأمان</h2>
+      <p>غيّر كلمة المرور الخاصة بحسابك.</p>
+      <form id="passwordForm">
+        <div class="field"><label>كلمة المرور الحالية</label><input id="currentPassword" type="password" required></div>
+        <div class="field"><label>كلمة المرور الجديدة</label><input id="newPassword" type="password" minlength="6" required></div>
+        <button class="primary wide">تغيير كلمة المرور</button>
+        <div id="passwordMsg" class="success"></div>
+      </form>
+    </section>
+
+    <section class="settingCard">
+      <h2>معلومات الحساب</h2>
+      <p>إعداداتك مرتبطة بحسابك وتعمل على أي جهاز.</p>
+      <div class="toggle"><span>نوع الحساب</span><b id="role">لاعب</b></div>
+      <div class="toggle"><span>رقم الحساب</span><b id="userId">-</b></div>
+      <a id="adminLink" class="primary wide hidden" href="/admin" style="display:block;text-align:center;text-decoration:none">فتح لوحة الإدارة</a>
+    </section>
+  </div>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+async function api(url,opt={}){const r=await fetch(url,{headers:{"Content-Type":"application/json"},...opt});const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||"حدث خطأ");return j}
+function applyTheme(u){document.body.dataset.theme=u.theme||"dark";document.documentElement.classList.toggle("reduce-motion",!!u.reduceMotion)}
+async function load(){
+  try{
+    const j=await api("/api/settings"),u=j.user;
+    $("#username").value=u.username;$("#games").textContent=u.games;$("#wins").textContent=u.wins;
+    $("#theme").value=u.theme||"dark";$("#reduceMotion").checked=!!u.reduceMotion;$("#soundsEnabled").checked=u.soundsEnabled!==false;
+    $("#role").textContent=u.isAdmin?"مشرف":"لاعب";$("#userId").textContent="#"+u.id;$("#adminLink").classList.toggle("hidden",!u.isAdmin);applyTheme(u);
+  }catch(e){location.href="/"}
+}
+$("#profileForm").onsubmit=async e=>{e.preventDefault();$("#profileMsg").className="success";try{const j=await api("/api/settings/profile",{method:"POST",body:JSON.stringify({username:$("#username").value})});$("#profileMsg").textContent="تم حفظ الاسم";applyTheme(j.user)}catch(e){$("#profileMsg").className="error";$("#profileMsg").textContent=e.message}};
+$("#passwordForm").onsubmit=async e=>{e.preventDefault();$("#passwordMsg").className="success";try{await api("/api/settings/password",{method:"POST",body:JSON.stringify({currentPassword:$("#currentPassword").value,newPassword:$("#newPassword").value})});$("#passwordMsg").textContent="تم تغيير كلمة المرور";e.target.reset()}catch(e){$("#passwordMsg").className="error";$("#passwordMsg").textContent=e.message}};
+$("#savePrefs").onclick=async()=>{try{const j=await api("/api/settings/preferences",{method:"POST",body:JSON.stringify({theme:$("#theme").value,reduceMotion:$("#reduceMotion").checked,soundsEnabled:$("#soundsEnabled").checked})});$("#prefsMsg").textContent="تم حفظ التفضيلات";applyTheme(j.user)}catch(e){$("#prefsMsg").className="error";$("#prefsMsg").textContent=e.message}};
+load();
+</script>
+</body></html>
