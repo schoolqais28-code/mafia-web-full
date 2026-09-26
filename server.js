@@ -33,6 +33,9 @@ ensureColumn("users", "is_admin", "INTEGER DEFAULT 0");
 ensureColumn("users", "is_banned", "INTEGER DEFAULT 0");
 ensureColumn("users", "last_login_at", "TEXT");
 ensureColumn("users", "last_ip", "TEXT");
+ensureColumn("users", "theme", "TEXT DEFAULT 'dark'");
+ensureColumn("users", "reduce_motion", "INTEGER DEFAULT 0");
+ensureColumn("users", "sounds_enabled", "INTEGER DEFAULT 1");
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS site_settings(
@@ -48,6 +51,9 @@ CREATE TABLE IF NOT EXISTS admin_audit(
  created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 INSERT OR IGNORE INTO site_settings(key,value) VALUES('announcement','');
+INSERT OR IGNORE INTO site_settings(key,value) VALUES('maintenance_mode','0');
+INSERT OR IGNORE INTO site_settings(key,value) VALUES('maintenance_message','نعمل حاليًا على تحديث الموقع وسنعود قريبًا');
+INSERT OR IGNORE INTO site_settings(key,value) VALUES('registration_open','1');
 `);
 
 const sessionMiddleware = session({
@@ -75,7 +81,16 @@ app.use(sessionMiddleware);
 
 const cleanName = s => String(s || "").trim().replace(/[^\p{L}\p{N}_-]/gu, "").slice(0, 24);
 const requestIp = req => String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim().slice(0, 80);
-const userPublic = u => u ? ({ id: u.id, username: u.username, wins: u.wins || 0, games: u.games || 0, isAdmin: !!u.is_admin }) : null;
+const userPublic = u => u ? ({
+  id: u.id,
+  username: u.username,
+  wins: u.wins || 0,
+  games: u.games || 0,
+  isAdmin: !!u.is_admin,
+  theme: u.theme || "dark",
+  reduceMotion: !!u.reduce_motion,
+  soundsEnabled: u.sounds_enabled !== 0
+}) : null;
 const getUserById = id => db.prepare("SELECT * FROM users WHERE id=?").get(id);
 const getSetting = key => db.prepare("SELECT value FROM site_settings WHERE key=?").get(key)?.value || "";
 const setSetting = (key, value) => db.prepare("INSERT INTO site_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(key, value);
@@ -107,7 +122,38 @@ function requireAdmin(req, res, next) {
   });
 }
 
+app.use((req, res, next) => {
+  if (getSetting("maintenance_mode") !== "1") return next();
+  const id = req.session?.user?.id;
+  const u = id && getUserById(id);
+  if (u?.is_admin) return next();
+
+  const allowed =
+    req.path === "/admin" ||
+    req.path === "/maintenance" ||
+    req.path === "/api/login" ||
+    req.path === "/api/logout" ||
+    req.path === "/api/me" ||
+    req.path === "/api/site" ||
+    req.path === "/style.css" ||
+    req.path.startsWith("/assets/");
+
+  if (allowed) return next();
+
+  if (req.method === "GET" && req.accepts("html")) {
+    return res.status(503).sendFile(path.join(__dirname, "maintenance.html"));
+  }
+  return res.status(503).json({
+    error: "الموقع تحت الصيانة",
+    maintenance: true,
+    message: getSetting("maintenance_message")
+  });
+});
+
 app.post("/api/register", async (req, res) => {
+  if (getSetting("registration_open") === "0") {
+    return res.status(403).json({ error: "إنشاء الحسابات متوقف مؤقتًا من الإدارة" });
+  }
   const username = cleanName(req.body.username);
   const password = String(req.body.password || "");
   if (username.length < 3 || password.length < 6) {
@@ -146,7 +192,65 @@ app.get("/api/me", (req, res) => {
   if (!u || u.is_banned) return req.session.destroy(() => res.json({ user: null }));
   res.json({ user: userPublic(u) });
 });
-app.get("/api/site", (req, res) => res.json({ announcement: getSetting("announcement"), minPlayers: MIN_PLAYERS, maxPlayers: null }));
+app.get("/api/site", (req, res) => res.json({
+  announcement: getSetting("announcement"),
+  minPlayers: MIN_PLAYERS,
+  maxPlayers: null,
+  maintenance: getSetting("maintenance_mode") === "1",
+  maintenanceMessage: getSetting("maintenance_message"),
+  registrationOpen: getSetting("registration_open") !== "0"
+}));
+
+app.get("/settings", requireUser, (req, res) => res.sendFile(path.join(__dirname, "settings.html")));
+app.get("/maintenance", (req, res) => res.status(503).sendFile(path.join(__dirname, "maintenance.html")));
+
+app.get("/api/settings", requireUser, (req, res) => {
+  res.json({ user: userPublic(req.currentUser) });
+});
+
+app.post("/api/settings/profile", requireUser, (req, res) => {
+  const username = cleanName(req.body.username);
+  if (username.length < 3) return res.status(400).json({ error: "اسم المستخدم يجب أن يكون 3 أحرف على الأقل" });
+  try {
+    db.prepare("UPDATE users SET username=? WHERE id=?").run(username, req.currentUser.id);
+  } catch {
+    return res.status(409).json({ error: "اسم المستخدم مستخدم بالفعل" });
+  }
+  req.session.user.username = username;
+
+  for (const socket of io.sockets.sockets.values()) {
+    if (socket.data.userId === req.currentUser.id) socket.data.username = username;
+  }
+  for (const room of rooms.values()) {
+    for (const player of room.players.values()) {
+      if (player.userId === req.currentUser.id) player.name = username;
+    }
+    emitRoom(room.code);
+  }
+  res.json({ ok: true, user: userPublic(getUserById(req.currentUser.id)) });
+});
+
+app.post("/api/settings/password", requireUser, async (req, res) => {
+  const currentPassword = String(req.body.currentPassword || "");
+  const newPassword = String(req.body.newPassword || "");
+  if (newPassword.length < 6) return res.status(400).json({ error: "كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل" });
+  if (!(await bcrypt.compare(currentPassword, req.currentUser.password_hash))) {
+    return res.status(400).json({ error: "كلمة المرور الحالية غير صحيحة" });
+  }
+  const hash = await bcrypt.hash(newPassword, 12);
+  db.prepare("UPDATE users SET password_hash=? WHERE id=?").run(hash, req.currentUser.id);
+  res.json({ ok: true });
+});
+
+app.post("/api/settings/preferences", requireUser, (req, res) => {
+  const allowedThemes = new Set(["dark", "midnight", "red"]);
+  const theme = allowedThemes.has(String(req.body.theme)) ? String(req.body.theme) : "dark";
+  const reduceMotion = req.body.reduceMotion ? 1 : 0;
+  const soundsEnabled = req.body.soundsEnabled === false ? 0 : 1;
+  db.prepare("UPDATE users SET theme=?,reduce_motion=?,sounds_enabled=? WHERE id=?")
+    .run(theme, reduceMotion, soundsEnabled, req.currentUser.id);
+  res.json({ ok: true, user: userPublic(getUserById(req.currentUser.id)) });
+});
 
 const rooms = new Map();
 function publicRoom(r) {
@@ -208,6 +312,12 @@ app.get("/api/admin/overview", requireAdmin, (req, res) => {
     activePlayers,
     connectedSockets: io.engine.clientsCount,
     announcement: getSetting("announcement"),
+    maintenanceMode: getSetting("maintenance_mode") === "1",
+    maintenanceMessage: getSetting("maintenance_message"),
+    registrationOpen: getSetting("registration_open") !== "0",
+    uptimeSeconds: Math.floor(process.uptime()),
+    memoryMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
+    nodeVersion: process.version,
     minPlayers: MIN_PLAYERS,
     maxPlayers: null
   });
@@ -295,6 +405,59 @@ app.get("/api/admin/audit", requireAdmin, (req, res) => {
   res.json({ logs });
 });
 
+app.delete("/api/admin/audit", requireAdmin, (req, res) => {
+  db.prepare("DELETE FROM admin_audit").run();
+  audit(req.currentUser.id, "clear_audit", null, "Admin audit log cleared");
+  res.json({ ok: true });
+});
+
+app.post("/api/admin/maintenance", requireAdmin, (req, res) => {
+  const enabled = !!req.body.enabled;
+  const message = String(req.body.message || "نعمل حاليًا على تحديث الموقع وسنعود قريبًا").trim().slice(0, 300);
+  setSetting("maintenance_mode", enabled ? "1" : "0");
+  setSetting("maintenance_message", message);
+  audit(req.currentUser.id, enabled ? "maintenance_on" : "maintenance_off", null, message);
+  io.emit("site:maintenance", { enabled, message });
+
+  if (enabled) {
+    for (const socket of [...io.sockets.sockets.values()]) {
+      const u = socket.data.userId && getUserById(socket.data.userId);
+      if (!u?.is_admin) {
+        socket.emit("site:maintenance", { enabled: true, message });
+        removeSocketFromRoom(socket);
+        socket.disconnect(true);
+      }
+    }
+  }
+  res.json({ ok: true, enabled, message });
+});
+
+app.post("/api/admin/registration", requireAdmin, (req, res) => {
+  const open = !!req.body.open;
+  setSetting("registration_open", open ? "1" : "0");
+  audit(req.currentUser.id, open ? "registration_open" : "registration_closed");
+  res.json({ ok: true, open });
+});
+
+app.post("/api/admin/rooms/close-all", requireAdmin, async (req, res) => {
+  const roomCodes = [...rooms.keys()];
+  for (const code of roomCodes) {
+    io.to(code).emit("room:closed", "تم إغلاق جميع الغرف من الإدارة");
+    const sockets = await io.in(code).fetchSockets();
+    sockets.forEach(s => { s.leave(code); s.data.room = null; });
+    rooms.delete(code);
+  }
+  audit(req.currentUser.id, "close_all_rooms", null, `count:${roomCodes.length}`);
+  res.json({ ok: true, closed: roomCodes.length });
+});
+
+app.get("/api/admin/export/users", requireAdmin, (req, res) => {
+  const users = db.prepare("SELECT id,username,wins,games,is_admin,is_banned,created_at,last_login_at FROM users ORDER BY id").all();
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="mafia-users-${Date.now()}.json"`);
+  res.send(JSON.stringify({ exportedAt: new Date().toISOString(), users }, null, 2));
+});
+
 app.use(express.static(path.join(__dirname, "public")));
 
 io.use((socket, next) => sessionMiddleware(socket.request, {}, next));
@@ -302,6 +465,9 @@ io.use((socket, next) => {
   const id = socket.request.session?.user?.id;
   const u = id && getUserById(id);
   if (!u || u.is_banned) return next(new Error("سجل الدخول أولاً"));
+  if (getSetting("maintenance_mode") === "1" && !u.is_admin) {
+    return next(new Error("الموقع تحت الصيانة"));
+  }
   socket.data.userId = u.id;
   socket.data.username = u.username;
   next();
