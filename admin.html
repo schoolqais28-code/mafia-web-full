@@ -6,16 +6,15 @@
 <title>إدارة مافيا</title>
 <link rel="stylesheet" href="/style.css">
 <style>
-body{background:#08070b}.wrap{max-width:1300px;margin:auto;padding:20px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px}.top a{color:white;text-decoration:none}
-.metrics,.rooms{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.box{background:#0e0c10;border:1px solid #ffffff12;border-radius:16px;padding:16px;margin:12px 0}
-.metric b{display:block;font-size:30px}.muted{color:#918784}.row{display:flex;gap:8px;align-items:center}.row input{margin:0}.table{overflow:auto}
-table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:10px;border-bottom:1px solid #ffffff10;text-align:right}.actions{display:flex;gap:6px;flex-wrap:wrap}
-.actions button,.room button{background:#171319;border:1px solid #ffffff18;color:#eee;border-radius:8px;padding:6px 9px}.danger{color:#ff7f8b!important;border-color:#6a1b25!important}
+body{background:#08070b}.wrap{max-width:1350px;margin:auto;padding:20px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px}.top a{color:white;text-decoration:none}
+.metrics,.rooms,.adminGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.adminGrid{grid-template-columns:1.1fr .9fr}
+.box{background:#0e0c10;border:1px solid #ffffff12;border-radius:16px;padding:16px;margin:12px 0}.metric b{display:block;font-size:30px}.muted{color:#918784}.row{display:flex;gap:8px;align-items:center}.row input{margin:0}.table{overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:900px}th,td{padding:10px;border-bottom:1px solid #ffffff10;text-align:right}.actions{display:flex;gap:6px;flex-wrap:wrap}.actions button,.room button,.toolBtn{background:#171319;border:1px solid #ffffff18;color:#eee;border-radius:8px;padding:8px 10px}.danger{color:#ff7f8b!important;border-color:#6a1b25!important}.success{color:#62dfa0}
 .room{background:#0a090c;border-radius:12px;padding:12px}.players{display:grid;gap:5px;margin:8px 0}.players div{display:flex;justify-content:space-between;background:#ffffff05;padding:6px;border-radius:7px}
-.loginScreen{min-height:100vh;display:grid;place-items:center;padding:20px}.loginCard{width:min(430px,100%);background:#100e13;border:1px solid #ffffff16;border-radius:24px;padding:28px;box-shadow:0 30px 100px #000}
-.loginCard h1{margin-top:0}.loginCard input{width:100%;margin:7px 0}.loginCard button{width:100%;margin-top:10px}.error{color:#ff6c78;min-height:24px}
-.hidden{display:none!important}
-@media(max-width:800px){.metrics,.rooms{grid-template-columns:1fr}.top,.row{align-items:stretch;flex-direction:column}}
+.loginScreen{min-height:100vh;display:grid;place-items:center;padding:20px}.loginCard{width:min(430px,100%);background:#100e13;border:1px solid #ffffff16;border-radius:24px;padding:28px;box-shadow:0 30px 100px #000}.loginCard h1{margin-top:0}.loginCard input{width:100%;margin:7px 0}.loginCard button{width:100%;margin-top:10px}.error{color:#ff6c78;min-height:24px}.hidden{display:none!important}
+.statusDot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#48d88b;margin-left:6px}.statusDot.off{background:#ff5d69}.control{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #ffffff0b}.control:last-child{border-bottom:0}.control strong{display:block}.control small{color:#918784}.dangerBox{border-color:#6a1b25;background:linear-gradient(135deg,#1a090d,#0e0c10)}
+.chip{display:inline-block;background:#ffffff0c;border:1px solid #ffffff12;padding:4px 8px;border-radius:999px;font-size:12px}.serverLine{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #ffffff09}
+@media(max-width:900px){.metrics,.rooms,.adminGrid{grid-template-columns:1fr}.top,.row{align-items:stretch;flex-direction:column}}
 </style>
 </head>
 <body>
@@ -33,39 +32,110 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:10px;bor
 
 <div id="dashboard" class="wrap hidden">
   <div class="top">
-    <div><h1>لوحة إدارة الموقع</h1><div class="muted">الحد الأدنى 6 لاعبين ولا يوجد حد أعلى</div></div>
-    <div class="row"><a class="ghost" href="/">الموقع</a><button class="ghost" id="logout">تسجيل الخروج</button></div>
+    <div><h1>لوحة إدارة الموقع</h1><div class="muted">تحكم كامل بالموقع والحسابات والغرف والصيانة</div></div>
+    <div class="row"><a class="ghost" href="/">الموقع</a><a class="ghost" href="/settings">الإعدادات</a><button class="ghost" id="refreshAll">تحديث البيانات</button><button class="ghost" id="logout">تسجيل الخروج</button></div>
   </div>
+
   <div id="metrics" class="metrics"></div>
-  <div class="box"><h2>الإعلان العام</h2><div class="row"><input id="ann" maxlength="240" placeholder="اكتب إعلانًا عامًا"><button class="primary" id="saveAnn">حفظ</button></div></div>
-  <div class="box"><div class="top"><div><h2>الحسابات</h2><div class="muted">حظر وإدارة الصلاحيات والإحصائيات</div></div><input id="search" placeholder="بحث باسم المستخدم" style="max-width:280px"></div><div class="table"><table><thead><tr><th>المستخدم</th><th>الحالة</th><th>الدور</th><th>الألعاب</th><th>الفوز</th><th>الإجراءات</th></tr></thead><tbody id="users"></tbody></table></div></div>
-  <div class="box"><h2>الغرف النشطة</h2><div id="rooms" class="rooms"></div></div>
-  <div class="box"><h2>سجل الإدارة</h2><div id="audit"></div></div>
+
+  <div class="adminGrid">
+    <section class="box">
+      <div class="top"><div><h2>التحكم بالموقع</h2><div class="muted">الصيانة والتسجيل والإعلانات</div></div><span id="siteState" class="chip">...</span></div>
+
+      <div class="control">
+        <div><strong>وضع الصيانة</strong><small>يوقف الموقع أمام اللاعبين ويبقي لوحة الإدارة متاحة</small></div>
+        <button id="maintenanceToggle" class="toolBtn danger">...</button>
+      </div>
+      <div style="margin-top:10px">
+        <input id="maintenanceMessage" maxlength="300" placeholder="رسالة الصيانة للزوار">
+        <button id="saveMaintenanceMessage" class="toolBtn">حفظ رسالة الصيانة</button>
+      </div>
+
+      <div class="control">
+        <div><strong>إنشاء الحسابات</strong><small>افتح أو أغلق التسجيل الجديد مؤقتًا</small></div>
+        <button id="registrationToggle" class="toolBtn">...</button>
+      </div>
+
+      <div style="margin-top:14px"><h3>الإعلان العام</h3><div class="row"><input id="ann" maxlength="240" placeholder="اكتب إعلانًا عامًا"><button class="primary" id="saveAnn">حفظ</button></div></div>
+    </section>
+
+    <section class="box">
+      <h2>حالة السيرفر</h2>
+      <div class="serverLine"><span>الحالة</span><b><span class="statusDot"></span> يعمل</b></div>
+      <div class="serverLine"><span>وقت التشغيل</span><b id="uptime">-</b></div>
+      <div class="serverLine"><span>استخدام الذاكرة</span><b id="memory">-</b></div>
+      <div class="serverLine"><span>Node.js</span><b id="nodeVersion">-</b></div>
+      <div class="serverLine"><span>أقل عدد لاعبين</span><b>6</b></div>
+      <div class="serverLine"><span>الحد الأعلى</span><b>∞</b></div>
+    </section>
+  </div>
+
+  <section class="box dangerBox">
+    <h2>أدوات الإدارة السريعة</h2>
+    <div class="actions">
+      <button id="closeAllRooms" class="toolBtn danger">إغلاق جميع الغرف</button>
+      <button id="exportUsers" class="toolBtn">تصدير الحسابات JSON</button>
+      <button id="clearAudit" class="toolBtn danger">مسح سجل الإدارة</button>
+    </div>
+  </section>
+
+  <div class="box">
+    <div class="top"><div><h2>الحسابات</h2><div class="muted">حظر وإدارة الصلاحيات والإحصائيات</div></div><input id="search" placeholder="بحث باسم المستخدم" style="max-width:280px"></div>
+    <div class="table"><table><thead><tr><th>المستخدم</th><th>الحالة</th><th>الدور</th><th>الألعاب</th><th>الفوز</th><th>آخر دخول</th><th>الإجراءات</th></tr></thead><tbody id="users"></tbody></table></div>
+  </div>
+
+  <div class="box"><div class="top"><h2>الغرف النشطة</h2><span id="roomCount" class="chip">0</span></div><div id="rooms" class="rooms"></div></div>
+  <div class="box"><div class="top"><h2>سجل الإدارة</h2><span class="muted">آخر 120 عملية</span></div><div id="audit"></div></div>
 </div>
 
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let state={maintenanceMode:false,registrationOpen:true,maintenanceMessage:""};
 async function api(u,o={}){const r=await fetch(u,{headers:{"Content-Type":"application/json"},...o});const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||"حدث خطأ");return j}
 function showLogin(msg=""){ $("#dashboard").classList.add("hidden"); $("#loginScreen").classList.remove("hidden"); $("#loginError").textContent=msg; }
 function showDashboard(){ $("#loginScreen").classList.add("hidden"); $("#dashboard").classList.remove("hidden"); all(); }
+function fmtUptime(sec){sec=Number(sec)||0;const d=Math.floor(sec/86400),h=Math.floor(sec%86400/3600),m=Math.floor(sec%3600/60);return (d?d+" يوم ":"")+(h?h+" ساعة ":"")+m+" دقيقة"}
 
-$("#adminLogin").onsubmit=async e=>{
-  e.preventDefault(); $("#loginError").textContent="";
-  try{
-    const j=await api("/api/login",{method:"POST",body:JSON.stringify({username:$("#adminUser").value,password:$("#adminPass").value})});
-    if(!j.user?.isAdmin){ await api("/api/logout",{method:"POST"}); throw Error("هذا الحساب ليس لديه صلاحية الإدارة"); }
-    showDashboard();
-  }catch(e){ showLogin(e.message); }
-};
+$("#adminLogin").onsubmit=async e=>{e.preventDefault();$("#loginError").textContent="";try{const j=await api("/api/login",{method:"POST",body:JSON.stringify({username:$("#adminUser").value,password:$("#adminPass").value})});if(!j.user?.isAdmin){await api("/api/logout",{method:"POST"});throw Error("هذا الحساب ليس لديه صلاحية الإدارة")}showDashboard()}catch(e){showLogin(e.message)}};
 $("#logout").onclick=async()=>{await api("/api/logout",{method:"POST"});showLogin()};
 
-async function overview(){const o=await api("/api/admin/overview");$("#metrics").innerHTML=[["الحسابات",o.totalUsers],["الغرف",o.activeRooms],["اللاعبون الآن",o.activePlayers],["المتصلون",o.connectedSockets],["المحظورون",o.bannedUsers],["المشرفون",o.admins]].map(x=>'<div class="box metric"><span class="muted">'+x[0]+'</span><b>'+(x[1]||0)+'</b></div>').join("");$("#ann").value=o.announcement||""}
-async function users(){const q=encodeURIComponent($("#search").value.trim()),j=await api("/api/admin/users"+(q?"?q="+q:""));$("#users").innerHTML=j.users.map(u=>'<tr><td><b>'+esc(u.username)+'</b><div class="muted">#'+u.id+'</div></td><td>'+(u.is_banned?"محظور":"نشط")+'</td><td>'+(u.is_admin?"مشرف":"لاعب")+'</td><td>'+u.games+'</td><td>'+u.wins+'</td><td class="actions"><button data-id="'+u.id+'" data-a="'+(u.is_banned?"unban":"ban")+'">'+(u.is_banned?"فك الحظر":"حظر")+'</button><button data-id="'+u.id+'" data-a="'+(u.is_admin?"revoke_admin":"grant_admin")+'">'+(u.is_admin?"إلغاء الإدارة":"جعله مشرف")+'</button><button data-id="'+u.id+'" data-a="reset_stats">تصفير</button><button class="danger" data-del="'+u.id+'">حذف</button></td></tr>').join("");document.querySelectorAll("[data-a]").forEach(b=>b.onclick=async()=>{try{await api("/api/admin/users/"+b.dataset.id+"/action",{method:"POST",body:JSON.stringify({action:b.dataset.a})});await all()}catch(e){alert(e.message)}});document.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{if(confirm("حذف الحساب نهائيًا؟"))try{await api("/api/admin/users/"+b.dataset.del,{method:"DELETE"});await all()}catch(e){alert(e.message)}})}
-async function rooms(){const j=await api("/api/admin/rooms");$("#rooms").innerHTML=j.rooms.length?j.rooms.map(r=>'<div class="room"><b>'+esc(r.code)+'</b><div class="muted">'+r.players.length+'/∞ لاعبين • '+(r.started?"بدأت":"انتظار")+'</div><div class="players">'+r.players.map(p=>'<div><span>'+esc(p.name)+'</span><button data-k="'+esc(p.id)+'" data-r="'+esc(r.code)+'">إخراج</button></div>').join("")+'</div><button class="danger" data-close="'+esc(r.code)+'">إغلاق الغرفة</button></div>').join(""):'<div class="muted">لا توجد غرف نشطة</div>';document.querySelectorAll("[data-close]").forEach(b=>b.onclick=async()=>{if(confirm("إغلاق الغرفة؟")){await api("/api/admin/rooms/"+b.dataset.close+"/close",{method:"POST"});await all()}});document.querySelectorAll("[data-k]").forEach(b=>b.onclick=async()=>{await api("/api/admin/rooms/"+b.dataset.r+"/kick",{method:"POST",body:JSON.stringify({socketId:b.dataset.k})});await all()})}
+async function overview(){
+  const o=await api("/api/admin/overview");state=o;
+  $("#metrics").innerHTML=[
+    ["الحسابات",o.totalUsers],["الغرف",o.activeRooms],["اللاعبون الآن",o.activePlayers],["المتصلون",o.connectedSockets],["المحظورون",o.bannedUsers],["المشرفون",o.admins]
+  ].map(x=>'<div class="box metric"><span class="muted">'+x[0]+'</span><b>'+(x[1]||0)+'</b></div>').join("");
+  $("#ann").value=o.announcement||"";$("#maintenanceMessage").value=o.maintenanceMessage||"";
+  $("#maintenanceToggle").textContent=o.maintenanceMode?"إيقاف الصيانة":"تشغيل الصيانة";
+  $("#maintenanceToggle").classList.toggle("danger",!o.maintenanceMode);
+  $("#registrationToggle").textContent=o.registrationOpen?"إغلاق التسجيل":"فتح التسجيل";
+  $("#siteState").textContent=o.maintenanceMode?"تحت الصيانة":"الموقع يعمل";
+  $("#siteState").className="chip "+(o.maintenanceMode?"danger":"success");
+  $("#uptime").textContent=fmtUptime(o.uptimeSeconds);$("#memory").textContent=(o.memoryMB||0)+" MB";$("#nodeVersion").textContent=o.nodeVersion||"-";
+}
+async function users(){
+  const q=encodeURIComponent($("#search").value.trim()),j=await api("/api/admin/users"+(q?"?q="+q:""));
+  $("#users").innerHTML=j.users.map(u=>'<tr><td><b>'+esc(u.username)+'</b><div class="muted">#'+u.id+'</div></td><td>'+(u.is_banned?"محظور":"نشط")+'</td><td>'+(u.is_admin?"مشرف":"لاعب")+'</td><td>'+u.games+'</td><td>'+u.wins+'</td><td>'+(u.last_login_at?esc(u.last_login_at):"-")+'</td><td class="actions"><button data-id="'+u.id+'" data-a="'+(u.is_banned?"unban":"ban")+'">'+(u.is_banned?"فك الحظر":"حظر")+'</button><button data-id="'+u.id+'" data-a="'+(u.is_admin?"revoke_admin":"grant_admin")+'">'+(u.is_admin?"إلغاء الإدارة":"جعله مشرف")+'</button><button data-id="'+u.id+'" data-a="reset_stats">تصفير</button><button class="danger" data-del="'+u.id+'">حذف</button></td></tr>').join("");
+  document.querySelectorAll("[data-a]").forEach(b=>b.onclick=async()=>{try{await api("/api/admin/users/"+b.dataset.id+"/action",{method:"POST",body:JSON.stringify({action:b.dataset.a})});await all()}catch(e){alert(e.message)}});
+  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{if(confirm("حذف الحساب نهائيًا؟"))try{await api("/api/admin/users/"+b.dataset.del,{method:"DELETE"});await all()}catch(e){alert(e.message)}});
+}
+async function rooms(){
+  const j=await api("/api/admin/rooms");$("#roomCount").textContent=j.rooms.length;
+  $("#rooms").innerHTML=j.rooms.length?j.rooms.map(r=>'<div class="room"><b>'+esc(r.code)+'</b><div class="muted">'+r.players.length+'/∞ لاعبين • '+(r.started?"بدأت":"انتظار")+'</div><div class="players">'+r.players.map(p=>'<div><span>'+esc(p.name)+'</span><button data-k="'+esc(p.id)+'" data-r="'+esc(r.code)+'">إخراج</button></div>').join("")+'</div><button class="danger" data-close="'+esc(r.code)+'">إغلاق الغرفة</button></div>').join(""):'<div class="muted">لا توجد غرف نشطة</div>';
+  document.querySelectorAll("[data-close]").forEach(b=>b.onclick=async()=>{if(confirm("إغلاق الغرفة؟")){await api("/api/admin/rooms/"+b.dataset.close+"/close",{method:"POST"});await all()}});
+  document.querySelectorAll("[data-k]").forEach(b=>b.onclick=async()=>{await api("/api/admin/rooms/"+b.dataset.r+"/kick",{method:"POST",body:JSON.stringify({socketId:b.dataset.k})});await all()});
+}
 async function audit(){const j=await api("/api/admin/audit");$("#audit").innerHTML=j.logs.map(l=>'<div style="padding:8px;border-bottom:1px solid #ffffff0b"><b>'+esc(l.action)+'</b> <span class="muted">'+esc(l.details||"")+' • '+esc(l.admin_username||"system")+' • '+esc(l.created_at)+'</span></div>').join("")||'<div class="muted">لا توجد عمليات بعد</div>'}
 async function all(){try{await Promise.all([overview(),users(),rooms(),audit()])}catch(e){showLogin(e.message)}}
+
 $("#saveAnn").onclick=async()=>{try{await api("/api/admin/announcement",{method:"POST",body:JSON.stringify({message:$("#ann").value})});await all()}catch(e){alert(e.message)}};
+$("#maintenanceToggle").onclick=async()=>{const enabling=!state.maintenanceMode;const msg=$("#maintenanceMessage").value.trim();if(enabling&&!confirm("سيتم إيقاف الموقع أمام اللاعبين وإغلاق اتصالاتهم الحالية. متابعة؟"))return;try{await api("/api/admin/maintenance",{method:"POST",body:JSON.stringify({enabled:enabling,message:msg})});await all()}catch(e){alert(e.message)}};
+$("#saveMaintenanceMessage").onclick=async()=>{try{await api("/api/admin/maintenance",{method:"POST",body:JSON.stringify({enabled:state.maintenanceMode,message:$("#maintenanceMessage").value})});await all()}catch(e){alert(e.message)}};
+$("#registrationToggle").onclick=async()=>{try{await api("/api/admin/registration",{method:"POST",body:JSON.stringify({open:!state.registrationOpen})});await all()}catch(e){alert(e.message)}};
+$("#closeAllRooms").onclick=async()=>{if(!confirm("إغلاق جميع الغرف النشطة الآن؟"))return;try{const j=await api("/api/admin/rooms/close-all",{method:"POST"});alert("تم إغلاق "+j.closed+" غرفة");await all()}catch(e){alert(e.message)}};
+$("#exportUsers").onclick=()=>{window.location.href="/api/admin/export/users"};
+$("#clearAudit").onclick=async()=>{if(!confirm("مسح سجل الإدارة؟"))return;try{await api("/api/admin/audit",{method:"DELETE"});await audit()}catch(e){alert(e.message)}};
+$("#refreshAll").onclick=all;
 let t;$("#search").oninput=()=>{clearTimeout(t);t=setTimeout(users,250)};
 (async()=>{try{const j=await api("/api/me");if(j.user?.isAdmin)showDashboard();else showLogin()}catch{showLogin()}})();
 setInterval(()=>{if(!$("#dashboard").classList.contains("hidden")){overview().catch(()=>{});rooms().catch(()=>{})}},15000);
