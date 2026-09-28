@@ -332,8 +332,7 @@ class _AdminPageState extends State<AdminPage>
                 child: ListTile(
                   title: Text((l['action'] ?? '').toString()),
                   subtitle: Text(
-                      '${l['details'] ?? ''}
-${l['admin_username'] ?? 'system'} • ${l['created_at'] ?? ''}'),
+                      '${l['details'] ?? ''}\n${l['admin_username'] ?? 'system'} • ${l['created_at'] ?? ''}'),
                 ),
               );
             },
