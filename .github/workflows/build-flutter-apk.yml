@@ -1,4 +1,4 @@
-name: Build Flutter APK
+name: Build Native Flutter APK
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
 
     steps:
       - name: Checkout
@@ -36,16 +36,16 @@ jobs:
           rm -rf /tmp/mafia_flutter_build
           flutter create --platforms=android --org com.qais --project-name mafia_flutter /tmp/mafia_flutter_build
           cp flutter_app/pubspec.yaml /tmp/mafia_flutter_build/pubspec.yaml
-          cp flutter_app/lib/main.dart /tmp/mafia_flutter_build/lib/main.dart
+          rm -rf /tmp/mafia_flutter_build/lib
+          cp -R flutter_app/lib /tmp/mafia_flutter_build/lib
           rm -rf /tmp/mafia_flutter_build/test
 
       - name: Configure Android
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
-          manifest_path = Path('/tmp/mafia_flutter_build/android/app/src/main/AndroidManifest.xml')
-          s = manifest_path.read_text()
+          p = Path('/tmp/mafia_flutter_build/android/app/src/main/AndroidManifest.xml')
+          s = p.read_text()
           marker = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
           permissions = '''<manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
@@ -53,13 +53,12 @@ jobs:
               <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />'''
           s = s.replace(marker, permissions)
           s = s.replace('android:label="mafia_flutter"', 'android:label="MAFIA"')
-          manifest_path.write_text(s)
+          p.write_text(s)
 
-          gradle_path = Path('/tmp/mafia_flutter_build/android/app/build.gradle.kts')
-          if gradle_path.exists():
-              g = gradle_path.read_text()
-              g = g.replace('minSdk = flutter.minSdkVersion', 'minSdk = 24')
-              gradle_path.write_text(g)
+          g = Path('/tmp/mafia_flutter_build/android/app/build.gradle.kts')
+          if g.exists():
+              t = g.read_text().replace('minSdk = flutter.minSdkVersion', 'minSdk = 24')
+              g.write_text(t)
           PY
 
       - name: Get packages
@@ -76,11 +75,11 @@ jobs:
 
       - name: Copy APK
         run: |
-          cp /tmp/mafia_flutter_build/build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/mafia-flutter.apk"
+          cp /tmp/mafia_flutter_build/build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/mafia-flutter-native.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: mafia-flutter-apk
-          path: mafia-flutter.apk
+          name: mafia-flutter-native-apk
+          path: mafia-flutter-native.apk
           if-no-files-found: error
