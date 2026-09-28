@@ -11,13 +11,13 @@
 <section class="hero">
  <div class="heroCopy"><span class="eyebrow">لعبة اجتماعية • صوت مباشر • أونلاين</span><h1>من الكاذب<br><em>بينكم؟</em></h1>
  <p>أنشئ غرفة، ادعُ أصدقاءك، تحدثوا بالصوت واكتشفوا المافيا قبل فوات الأوان.</p>
- <div class="actions"><button class="primary" id="createBtn">إنشاء غرفة</button><button class="secondary" id="joinOpen">دخول بكود</button></div>
+ <div class="actions"><button class="primary" id="createBtn">إنشاء غرفة</button><button class="secondary" id="joinOpen">دخول بكود</button><button class="secondary offlineLaunch" id="offlineOpen">📱 لعب أوفلاين</button></div>
  <div class="stats"><span><b>6+</b> لاعبين</span><span><b>LIVE</b> صوت مباشر</span><span><b>∞</b> جولات</span></div></div>
  <div class="poster"><img src="assets/hero.svg"><div class="posterTag">الثقة قد تقتلك</div></div>
 </section>
 <section class="features"><article><img src="assets/night-city.svg"><div><b>مدينة لا تنام</b><p>واجهة سينمائية متجاوبة لكل الشاشات.</p></div></article>
 <article><img src="assets/red-room.svg"><div><b>غرف خاصة</b><p>كود سريع لمشاركة الجولة مع أصدقائك.</p></div></article>
-<article><img src="assets/good.svg"><div><b>أدوار سرية</b><p>مافيا، طبيب ومواطنون مع توزيع تلقائي.</p></div></article></section>
+<article><img src="assets/good.svg"><div><b>أدوار سرية</b><p>مافيا، طبيب ومواطنون مع توزيع تلقائي.</p></div></article><article class="offlineFeature"><div><b>📱 جهاز واحد</b><p>مرّر الهاتف بين اللاعبين والعبوا بدون غرف أو حسابات.</p></div></article></section>
 </main>
 <div class="modal hidden" id="authModal"><div class="panel"><button class="x" data-close>×</button><img class="miniLogo" src="assets/logo.svg">
 <div class="tabs"><button class="active" data-tab="login">تسجيل دخول</button><button data-tab="register">إنشاء حساب</button></div>
@@ -31,6 +31,74 @@
 <div class="role hidden" id="roleBox"></div>
 <div class="gameGrid"><div class="players card"><h3>اللاعبون</h3><div id="players"></div></div>
 <div class="chat card"><h3>المجلس</h3><div id="messages"></div><form id="chatForm"><input id="chatInput" placeholder="اكتب رسالة..." maxlength="300"><button>إرسال</button></form></div></div>
+</section>
+
+<div class="modal hidden" id="offlineSetupModal">
+  <div class="panel offlineSetupPanel">
+    <button class="x" data-close>×</button>
+    <span class="eyebrow">PASS & PLAY</span>
+    <h2>لعب أوفلاين على جهاز واحد</h2>
+    <p class="offlineHint">لا يحتاج حساب ولا غرفة. أدخل أسماء اللاعبين ثم مرّر الهاتف بينهم ليكشف كل شخص دوره بسرية.</p>
+    <div class="offlineCountRow">
+      <label for="offlinePlayerCount">عدد اللاعبين</label>
+      <input id="offlinePlayerCount" type="number" min="6" value="6" inputmode="numeric">
+      <button class="ghost" id="offlineBuildNames" type="button">تحديث الأسماء</button>
+    </div>
+    <div id="offlineNames" class="offlineNames"></div>
+    <p class="error" id="offlineError"></p>
+    <button class="primary wide" id="offlineStart" type="button">توزيع الأدوار وبدء اللعبة</button>
+    <button class="secondary wide hidden" id="offlineResume" type="button">استكمال اللعبة المحفوظة</button>
+  </div>
+</div>
+
+<section class="offlineGame hidden" id="offlineGame">
+  <div class="offlineTop">
+    <div>
+      <span class="eyebrow">أوفلاين • جهاز واحد</span>
+      <h2 id="offlineTitle">كشف الأدوار</h2>
+    </div>
+    <div class="offlineTopActions">
+      <button class="ghost" id="offlineHome">العودة للرئيسية</button>
+      <button class="dangerBtn" id="offlineEnd">إنهاء اللعبة</button>
+    </div>
+  </div>
+
+  <div id="offlineReveal" class="offlineStage">
+    <div class="passCard">
+      <div id="offlinePassIcon" class="passIcon">📱</div>
+      <p class="offlineKicker">مرّر الهاتف إلى</p>
+      <h1 id="offlineCurrentName">اللاعب</h1>
+      <p id="offlineRevealHelp">تأكد أن لا أحد غيرك يرى الشاشة</p>
+      <div id="offlineRoleCard" class="offlineRoleCard hidden">
+        <span id="offlineRoleEmoji">🎭</span>
+        <h2 id="offlineRoleName">الدور</h2>
+        <p id="offlineRoleDesc"></p>
+      </div>
+      <button class="primary wide" id="offlineRevealBtn">أنا جاهز — أظهر دوري</button>
+      <div class="offlineProgress"><span id="offlineProgressText">1 / 6</span><div><i id="offlineProgressBar"></i></div></div>
+    </div>
+  </div>
+
+  <div id="offlineBoard" class="offlineStage hidden">
+    <div class="offlineSummary">
+      <div><span>الجولة</span><b id="offlineRound">1</b></div>
+      <div><span>الأحياء</span><b id="offlineAlive">0</b></div>
+      <div><span>خارج اللعبة</span><b id="offlineDead">0</b></div>
+      <div><span>اللاعبون</span><b id="offlineTotal">0</b></div>
+    </div>
+    <div class="offlineBoardCard">
+      <div class="offlineBoardHead">
+        <div><h3>حالة اللاعبين</h3><p>اضغط على اللاعب لتغيير حالته بين حي وخارج اللعبة</p></div>
+        <button class="secondary" id="offlineNextRound">جولة جديدة +1</button>
+      </div>
+      <div id="offlinePlayersBoard" class="offlinePlayersBoard"></div>
+    </div>
+    <div class="offlineBoardActions">
+      <button class="secondary" id="offlineRevealAll">كشف كل الأدوار</button>
+      <button class="primary" id="offlineRedistribute">إعادة توزيع الأدوار بنفس الأسماء</button>
+    </div>
+    <div id="offlineAllRoles" class="offlineAllRoles hidden"></div>
+  </div>
 </section>
 <script src="/socket.io/socket.io.js"></script><script src="app.js"></script>
 </body></html>
