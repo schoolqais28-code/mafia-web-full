@@ -37,6 +37,7 @@ jobs:
           flutter create --platforms=android --org com.qais --project-name mafia_flutter /tmp/mafia_flutter_build
           cp flutter_app/pubspec.yaml /tmp/mafia_flutter_build/pubspec.yaml
           cp flutter_app/lib/main.dart /tmp/mafia_flutter_build/lib/main.dart
+          rm -rf /tmp/mafia_flutter_build/test
 
       - name: Configure Android permissions and app name
         run: |
