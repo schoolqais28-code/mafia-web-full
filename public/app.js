@@ -102,15 +102,27 @@ function offlineBuildNames(){
 }
 
 function offlineAssign(names){
-  const mafiaCount=3;
   const mafiaRoles=["mafia_boss","mafia_silencer","mafia_normal"];
+  const specialGoodRoles=["doctor","old_man","mayor","boy","sniper"];
+  let roles;
 
-  const goodCount=names.length-mafiaCount;
-  const goodPriority=["doctor","old_man","mayor","boy","sniper"];
-  const goodRoles=goodPriority.slice(0,Math.min(goodPriority.length,Math.max(0,goodCount-1)));
-  while(goodRoles.length<goodCount)goodRoles.push("citizen");
+  if(names.length>=9){
+    roles=[
+      ...mafiaRoles,
+      ...specialGoodRoles,
+      "citizen",
+      ...Array(names.length-9).fill("citizen")
+    ];
+  }else{
+    const slotsForSpecials=Math.max(0,names.length-4);
+    roles=[
+      ...mafiaRoles,
+      "citizen",
+      ...specialGoodRoles.slice(0,slotsForSpecials)
+    ];
+  }
 
-  const shuffled=offlineShuffle([...mafiaRoles,...goodRoles]);
+  const shuffled=offlineShuffle(roles);
   return names.map((name,i)=>({name,role:shuffled[i]||"citizen",alive:true}));
 }
 
