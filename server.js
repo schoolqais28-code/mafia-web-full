@@ -503,6 +503,11 @@ io.on("connection", socket => {
     emitRoom(code);
   });
 
+  socket.on("room:leave", (_, ack) => {
+    removeSocketFromRoom(socket);
+    ack?.({ ok: true });
+  });
+
   socket.on("game:start", (_, ack) => {
     const code = socket.data.room;
     const r = rooms.get(code);
