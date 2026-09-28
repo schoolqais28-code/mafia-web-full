@@ -39,21 +39,27 @@ jobs:
           cp flutter_app/lib/main.dart /tmp/mafia_flutter_build/lib/main.dart
           rm -rf /tmp/mafia_flutter_build/test
 
-      - name: Configure Android permissions and app name
+      - name: Configure Android
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p = Path('/tmp/mafia_flutter_build/android/app/src/main/AndroidManifest.xml')
-          s = p.read_text()
-          manifest = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+
+          manifest_path = Path('/tmp/mafia_flutter_build/android/app/src/main/AndroidManifest.xml')
+          s = manifest_path.read_text()
+          marker = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
           permissions = '''<manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
               <uses-permission android:name="android.permission.RECORD_AUDIO" />
               <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />'''
-          s = s.replace(manifest, permissions)
+          s = s.replace(marker, permissions)
           s = s.replace('android:label="mafia_flutter"', 'android:label="MAFIA"')
-          s = s.replace('<application', '<application android:hardwareAccelerated="true"')
-          p.write_text(s)
+          manifest_path.write_text(s)
+
+          gradle_path = Path('/tmp/mafia_flutter_build/android/app/build.gradle.kts')
+          if gradle_path.exists():
+              g = gradle_path.read_text()
+              g = g.replace('minSdk = flutter.minSdkVersion', 'minSdk = 24')
+              gradle_path.write_text(g)
           PY
 
       - name: Get packages
