@@ -102,11 +102,8 @@ function offlineBuildNames(){
 }
 
 function offlineAssign(names){
-  const mafiaCount=Math.max(2,Math.ceil(names.length/4));
-  const mafiaRoles=["mafia_boss"];
-  if(mafiaCount>=2)mafiaRoles.push("mafia_normal");
-  if(mafiaCount>=3)mafiaRoles.push("mafia_silencer");
-  while(mafiaRoles.length<mafiaCount)mafiaRoles.push("mafia_normal");
+  const mafiaCount=3;
+  const mafiaRoles=["mafia_boss","mafia_silencer","mafia_normal"];
 
   const goodCount=names.length-mafiaCount;
   const goodPriority=["doctor","old_man","mayor","boy","sniper"];
