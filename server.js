@@ -515,15 +515,27 @@ io.on("connection", socket => {
     if (r.players.size < MIN_PLAYERS) return ack?.({ ok: false, error: `يلزم ${MIN_PLAYERS} لاعبين على الأقل لبدء الجولة` });
 
     const ps = [...r.players.values()].sort(() => Math.random() - 0.5);
-    const mafiaCount = 3;
     const mafiaRoles = ["mafia_boss", "mafia_silencer", "mafia_normal"];
+    const specialGoodRoles = ["doctor", "old_man", "mayor", "boy", "sniper"];
+    let roles;
 
-    const goodCount = ps.length - mafiaCount;
-    const goodPriority = ["doctor", "old_man", "mayor", "boy", "sniper"];
-    const goodRoles = goodPriority.slice(0, Math.min(goodPriority.length, Math.max(0, goodCount - 1)));
-    while (goodRoles.length < goodCount) goodRoles.push("citizen");
+    if (ps.length >= 9) {
+      roles = [
+        ...mafiaRoles,
+        ...specialGoodRoles,
+        "citizen",
+        ...Array(ps.length - 9).fill("citizen")
+      ];
+    } else {
+      const slotsForSpecials = Math.max(0, ps.length - 4);
+      roles = [
+        ...mafiaRoles,
+        "citizen",
+        ...specialGoodRoles.slice(0, slotsForSpecials)
+      ];
+    }
 
-    const roles = [...mafiaRoles, ...goodRoles].sort(() => Math.random() - 0.5);
+    roles = roles.sort(() => Math.random() - 0.5);
     ps.forEach((p, i) => {
       p.role = roles[i] || "citizen";
       p.alive = true;
