@@ -115,8 +115,15 @@
 <div class="modal hidden" id="joinModal"><div class="panel"><button class="x" data-close>×</button><h2>دخول إلى غرفة</h2>
 <input id="roomCode" maxlength="5" placeholder="ABCDE"><button class="primary wide" id="joinBtn">دخول</button></div></div>
 <section class="game hidden" id="game">
-<div class="gameTop"><div><span>رمز الغرفة</span><button id="copyCode" class="code">-----</button></div><div class="gameActions"><button id="voiceBtn" class="secondary">🎙 تشغيل الصوت</button><button id="startBtn" class="primary">ابدأ الجولة</button></div></div>
+<div class="gameTop"><div><span>رمز الغرفة</span><button id="copyCode" class="code">-----</button></div><div class="gameActions"><button id="voiceBtn" class="secondary">🎙 تشغيل الصوت</button><button id="voteBtn" class="secondary hidden">🗳️ بدء التصويت</button><button id="startBtn" class="primary">ابدأ الجولة</button></div></div>
 <div class="role hidden" id="roleBox"></div>
+<div class="votePanel hidden" id="votePanel">
+  <div class="voteHead"><div><span class="eyebrow">التصويت</span><h3 id="voteTitle">الجولة الأولى</h3></div><span class="voteCounter" id="voteCounter">0 / 0</span></div>
+  <p id="voteStatus">اختر اللاعب الذي تريد التصويت ضده</p>
+  <div id="voteCandidates" class="voteCandidates"></div>
+  <div id="voteResult" class="voteResult hidden"></div>
+  <button id="voteFinalBtn" class="primary hidden">بدء التصويت النهائي</button>
+</div>
 <div class="gameGrid"><div class="players card"><h3>اللاعبون</h3><div id="players"></div></div>
 <div class="chat card"><h3>المجلس</h3><div id="messages"></div><form id="chatForm"><input id="chatInput" placeholder="اكتب رسالة..." maxlength="300"><button>إرسال</button></form></div></div>
 </section>
@@ -182,10 +189,25 @@
       <div id="offlinePlayersBoard" class="offlinePlayersBoard"></div>
     </div>
     <div class="offlineBoardActions">
+      <button class="primary" id="offlineStartVote">🗳️ بدء جولة التصويت</button>
       <button class="secondary" id="offlineRevealAll">كشف كل الأدوار</button>
-      <button class="primary" id="offlineRedistribute">إعادة توزيع الأدوار بنفس الأسماء</button>
+      <button class="secondary" id="offlineRedistribute">إعادة توزيع الأدوار بنفس الأسماء</button>
     </div>
     <div id="offlineAllRoles" class="offlineAllRoles hidden"></div>
+  </div>
+
+  <div id="offlineVote" class="offlineStage hidden">
+    <div class="passCard votePassCard">
+      <div class="passIcon">🗳️</div>
+      <p class="offlineKicker" id="offlineVoteRoundLabel">التصويت الأول</p>
+      <h1 id="offlineVoterName">اللاعب</h1>
+      <p id="offlineVoteHelp">مرّر الهاتف إلى هذا اللاعب فقط ثم اضغط جاهز</p>
+      <div id="offlineVoteChoices" class="offlineVoteChoices hidden"></div>
+      <div id="offlineVoteResult" class="offlineVoteResult hidden"></div>
+      <button id="offlineVoteReady" class="primary wide">أنا جاهز للتصويت</button>
+      <button id="offlineVoteNext" class="primary wide hidden">متابعة</button>
+      <div class="offlineProgress"><span id="offlineVoteProgressText">1 / 6</span><div><i id="offlineVoteProgressBar"></i></div></div>
+    </div>
   </div>
 </section>
 <script src="/socket.io/socket.io.js"></script><script src="app.js"></script>
