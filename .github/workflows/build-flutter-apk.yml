@@ -1,0 +1,79 @@
+name: Build Flutter APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'flutter_app/**'
+      - '.github/workflows/build-flutter-apk.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Create Android Flutter shell
+        run: |
+          rm -rf /tmp/mafia_flutter_build
+          flutter create --platforms=android --org com.qais --project-name mafia_flutter /tmp/mafia_flutter_build
+          cp flutter_app/pubspec.yaml /tmp/mafia_flutter_build/pubspec.yaml
+          cp flutter_app/lib/main.dart /tmp/mafia_flutter_build/lib/main.dart
+
+      - name: Configure Android permissions and app name
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('/tmp/mafia_flutter_build/android/app/src/main/AndroidManifest.xml')
+          s = p.read_text()
+          manifest = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+          permissions = '''<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.RECORD_AUDIO" />
+              <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />'''
+          s = s.replace(manifest, permissions)
+          s = s.replace('android:label="mafia_flutter"', 'android:label="MAFIA"')
+          s = s.replace('<application', '<application android:hardwareAccelerated="true"')
+          p.write_text(s)
+          PY
+
+      - name: Get packages
+        working-directory: /tmp/mafia_flutter_build
+        run: flutter pub get
+
+      - name: Analyze Dart
+        working-directory: /tmp/mafia_flutter_build
+        run: flutter analyze
+
+      - name: Build release APK
+        working-directory: /tmp/mafia_flutter_build
+        run: flutter build apk --release
+
+      - name: Copy APK
+        run: |
+          cp /tmp/mafia_flutter_build/build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/mafia-flutter.apk"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mafia-flutter-apk
+          path: mafia-flutter.apk
+          if-no-files-found: error
