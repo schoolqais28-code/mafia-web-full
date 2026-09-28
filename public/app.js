@@ -10,7 +10,21 @@ async function refreshMe(){me=(await api("/api/me")).user;$("#authBtn").classLis
 async function refreshSite(){try{const j=await api("/api/site");setAnnouncement(j.announcement);const reg=$('[data-tab="register"]');if(reg)reg.classList.toggle("hidden",j.registrationOpen===false);if(j.maintenance&&!me?.isAdmin)location.href="/maintenance"}catch{}}
 function connectSocket(){socket=io();
 socket.on("room:update",r=>{room=r;$("#copyCode").textContent=r.code;$("#players").innerHTML=r.players.map(p=>`<div class="player"><span class="avatar">${esc(p.name[0]?.toUpperCase()||"?")}</span><span>${esc(p.name)}</span><i class="online"></i></div>`).join("");$("#startBtn").classList.toggle("hidden",r.host!==socket.id)});
-socket.on("role",role=>{const n={mafia:"🔪 أنت المافيا — اخفِ هويتك",doctor:"🩺 أنت الطبيب — احمِ المدينة",citizen:"🕵️ أنت مواطن — اكتشف المافيا"};$("#roleBox").textContent=n[role];show("#roleBox")});
+socket.on("role",role=>{
+  const n={
+    mafia_boss:"⭐ شيخ المافيا — يقرر الضحية النهائية للقتل كل ليلة بين اللاعبين الأحياء",
+    mafia_silencer:"🤐 مافيا التسكيت — يقرر من سيسكت غدًا فلا يستطيع الكلام في النقاش",
+    mafia_normal:"🔪 مافيا عادي — يعرف زملاءه ويشارك بالرأي دون قرار نهائي",
+    boy:"👦 الولد — إذا خرج من اللعبة بأي شكل يختار لاعبًا حيًا آخر ليخرج معه",
+    mayor:"🗳️ العمدة — الوحيد المسموح له بكشف دوره وصوته في التصويت يساوي 3 أصوات",
+    citizen:"👥 مواطن عادي — لا يملك قدرة خاصة لكن رأيه وتصويته في النهار مهمان جدًا",
+    doctor:"🩺 الدكتور — يحمي لاعبًا واحدًا كل ليلة من محاولة القتل ويمكنه حماية نفس الشخص أكثر من مرة",
+    old_man:"👁️ الشايب — يحقق مع لاعب حي واحد كل ليلة ليعرف إن كان من المافيا أم لا",
+    sniper:"🎯 القناص — يملك رصاصة واحدة طوال اللعبة وإذا أصاب صالحًا يموت معه"
+  };
+  $("#roleBox").textContent=n[role]||"🎭 دور سري";
+  show("#roleBox")
+});
 socket.on("chat",m=>{const d=document.createElement("div");d.className="msg";d.innerHTML=`<b>${esc(m.name)}</b> <span>${esc(m.text)}</span>`;$("#messages").appendChild(d);d.scrollIntoView();ping()});
 socket.on("voice:signal",handleSignal);socket.on("site:announcement",setAnnouncement);socket.on("site:maintenance",d=>{if(d?.enabled&&!me?.isAdmin)location.href="/maintenance"});
 socket.on("room:closed",m=>{alert(m||"تم إغلاق الغرفة");location.reload()});
@@ -39,9 +53,15 @@ let offlineState=null;
 let offlineRoleVisible=false;
 
 const offlineRoles={
-  mafia:{name:"المافيا",emoji:"🔪",desc:"اخفِ هويتك وحاول التخلص من بقية اللاعبين بدون ما ينكشف أمرك."},
-  doctor:{name:"الطبيب",emoji:"🩺",desc:"أنت الطبيب. حاول حماية اللاعبين ومساعدة المدينة على النجاة."},
-  citizen:{name:"المواطن",emoji:"🕵️",desc:"راقب الكلام والتصرفات واكتشف من هو المافيا قبل فوات الأوان."}
+  mafia_boss:{name:"شيخ المافيا",emoji:"⭐",team:"المافيا",desc:"يقرر الضحية النهائية للقتل كل ليلة، بحرية كاملة بين اللاعبين الأحياء."},
+  mafia_silencer:{name:"مافيا التسكيت",emoji:"🤐",team:"المافيا",desc:"يقرر من سيسكت غدًا فلا يستطيع الكلام في النقاش."},
+  mafia_normal:{name:"مافيا عادي",emoji:"🔪",team:"المافيا",desc:"عضو من المافيا يعرف زملاءه ويشارك بالرأي دون قرار نهائي."},
+  boy:{name:"الولد",emoji:"👦",team:"الصالحون",desc:"إذا خرج من اللعبة بأي شكل، يختار لاعبًا حيًا آخر ليخرج معه."},
+  mayor:{name:"العمدة",emoji:"🗳️",team:"الصالحون",desc:"الوحيد المسموح له بكشف دوره للآخرين، وصوته في التصويت يساوي 3 أصوات."},
+  citizen:{name:"مواطن عادي",emoji:"👥",team:"الصالحون",desc:"لا يملك قدرة خاصة، لكن رأيه وتصويته في النهار مهمان جدًا."},
+  doctor:{name:"الدكتور",emoji:"🩺",team:"الصالحون",desc:"يحمي لاعبًا واحدًا كل ليلة من محاولة القتل، ويمكنه حماية نفس الشخص أكثر من مرة."},
+  old_man:{name:"الشايب",emoji:"👁️",team:"الصالحون",desc:"يحقق مع لاعب حي واحد كل ليلة ليعرف إن كان من المافيا أم لا."},
+  sniper:{name:"القناص",emoji:"🎯",team:"الصالحون",desc:"يملك رصاصة واحدة طوال اللعبة. إن أصاب مافيا يبقى حيًا، وإن أصاب صالحًا يموت معه."}
 };
 
 function offlineShuffle(items){
@@ -82,14 +102,19 @@ function offlineBuildNames(){
 }
 
 function offlineAssign(names){
-  const mafiaCount=Math.max(1,Math.floor(names.length/4));
-  const roles=[
-    ...Array(mafiaCount).fill("mafia"),
-    "doctor",
-    ...Array(Math.max(0,names.length-mafiaCount-1)).fill("citizen")
-  ];
-  const shuffled=offlineShuffle(roles);
-  return names.map((name,i)=>({name,role:shuffled[i],alive:true}));
+  const mafiaCount=Math.max(2,Math.ceil(names.length/4));
+  const mafiaRoles=["mafia_boss"];
+  if(mafiaCount>=2)mafiaRoles.push("mafia_normal");
+  if(mafiaCount>=3)mafiaRoles.push("mafia_silencer");
+  while(mafiaRoles.length<mafiaCount)mafiaRoles.push("mafia_normal");
+
+  const goodCount=names.length-mafiaCount;
+  const goodPriority=["doctor","old_man","mayor","boy","sniper"];
+  const goodRoles=goodPriority.slice(0,Math.min(goodPriority.length,Math.max(0,goodCount-1)));
+  while(goodRoles.length<goodCount)goodRoles.push("citizen");
+
+  const shuffled=offlineShuffle([...mafiaRoles,...goodRoles]);
+  return names.map((name,i)=>({name,role:shuffled[i]||"citizen",alive:true}));
 }
 
 function openOffline(){
