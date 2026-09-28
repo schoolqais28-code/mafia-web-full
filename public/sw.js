@@ -1,4 +1,4 @@
-const CACHE="mafia-offline-v1";
+const CACHE="mafia-offline-v2";
 const CORE=[
   "/",
   "/index.html",
