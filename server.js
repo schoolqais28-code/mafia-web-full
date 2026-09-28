@@ -473,6 +473,107 @@ io.use((socket, next) => {
   next();
 });
 
+
+function getAlivePlayers(r) {
+  return [...r.players.values()].filter(p => p.alive);
+}
+
+function getVoteCandidates(r, round) {
+  if (round === 2) {
+    return (r.voteFinalists || [])
+      .map(id => r.players.get(id))
+      .filter(Boolean)
+      .filter(p => p.alive);
+  }
+  return getAlivePlayers(r);
+}
+
+function emitVoteState(r) {
+  if (!r.vote) return;
+  io.to(r.code).emit("vote:progress", {
+    round: r.vote.round,
+    votesCast: r.vote.votes.size,
+    totalVoters: getAlivePlayers(r).length
+  });
+}
+
+function finishVote(r) {
+  if (!r.vote?.active) return;
+
+  const alivePlayers = getAlivePlayers(r);
+  if (r.vote.votes.size < alivePlayers.length) return;
+
+  const tally = new Map();
+  for (const { targetId, weight } of r.vote.votes.values()) {
+    tally.set(targetId, (tally.get(targetId) || 0) + weight);
+  }
+
+  const tallies = [...tally.entries()]
+    .map(([id, votes]) => ({
+      id,
+      name: id === "__NONE__" ? "لا أحد" : (r.players.get(id)?.name || "لاعب"),
+      votes
+    }))
+    .sort((a, b) => b.votes - a.votes);
+
+  const maxVotes = tallies[0]?.votes || 0;
+  const leaders = tallies.filter(x => x.votes === maxVotes);
+
+  if (r.vote.round === 1) {
+    r.voteFinalists = leaders
+      .filter(x => x.id !== "__NONE__")
+      .map(x => x.id);
+
+    r.vote.active = false;
+    const finalists = r.voteFinalists.map(id => ({
+      id,
+      name: r.players.get(id)?.name || "لاعب"
+    }));
+
+    io.to(r.code).emit("vote:result", {
+      round: 1,
+      tallies,
+      finalists,
+      tied: finalists.length > 1,
+      message: finalists.length > 1
+        ? "تعادل أعلى الأصوات. المتعادلون ينتقلون للتصويت النهائي."
+        : `${finalists[0]?.name || "اللاعب"} حصل على أعلى الأصوات. أعطوه فرصة للتبرير ثم ابدأوا التصويت النهائي.`
+    });
+    return;
+  }
+
+  r.vote.active = false;
+  r.voteFinalists = [];
+
+  let eliminated = null;
+  let noElimination = false;
+
+  if (leaders.length !== 1 || leaders[0]?.id === "__NONE__") {
+    noElimination = true;
+  } else {
+    const target = r.players.get(leaders[0].id);
+    if (target?.alive) {
+      target.alive = false;
+      eliminated = { id: target.id, name: target.name };
+    } else {
+      noElimination = true;
+    }
+  }
+
+  io.to(r.code).emit("vote:result", {
+    round: 2,
+    tallies,
+    eliminated,
+    noElimination,
+    tied: leaders.length > 1,
+    message: eliminated
+      ? `${eliminated.name} خرج من اللعبة بعد التصويت النهائي.`
+      : "لم يخرج أحد من اللعبة بسبب التعادل أو اختيار لا أحد."
+  });
+
+  emitRoom(r.code);
+}
+
 io.on("connection", socket => {
   const userId = socket.data.userId;
   const username = socket.data.username;
@@ -541,9 +642,84 @@ io.on("connection", socket => {
       p.alive = true;
     });
     r.started = true;
+    r.vote = null;
+    r.voteFinalists = [];
     ps.forEach(p => io.to(p.id).emit("role", p.role));
     incrementGames(ps.map(p => p.userId));
     emitRoom(code);
+    ack?.({ ok: true });
+  });
+
+  socket.on("vote:start", ({ round = 1 } = {}, ack) => {
+    const code = socket.data.room;
+    const r = code && rooms.get(code);
+    if (!r || r.host !== socket.id) return ack?.({ ok: false, error: "المضيف فقط يمكنه بدء التصويت" });
+    if (!r.started) return ack?.({ ok: false, error: "ابدأ الجولة أولاً" });
+    if (r.vote?.active) return ack?.({ ok: false, error: "هناك تصويت جارٍ بالفعل" });
+
+    round = Number(round) === 2 ? 2 : 1;
+    if (round === 2 && !(r.voteFinalists || []).length) {
+      return ack?.({ ok: false, error: "يجب إنهاء التصويت الأول قبل التصويت النهائي" });
+    }
+
+    const candidates = getVoteCandidates(r, round);
+    if (!candidates.length) return ack?.({ ok: false, error: "لا يوجد مرشحون للتصويت" });
+
+    r.vote = {
+      active: true,
+      round,
+      votes: new Map(),
+      startedAt: Date.now()
+    };
+
+    io.to(code).emit("vote:started", {
+      round,
+      candidates: candidates.map(p => ({ id: p.id, name: p.name })),
+      allowNone: round === 2,
+      totalVoters: getAlivePlayers(r).length
+    });
+    ack?.({ ok: true });
+  });
+
+  socket.on("vote:cast", ({ targetId } = {}, ack) => {
+    const code = socket.data.room;
+    const r = code && rooms.get(code);
+    const voter = r?.players.get(socket.id);
+
+    if (!r?.vote?.active) return ack?.({ ok: false, error: "لا يوجد تصويت نشط" });
+    if (!voter?.alive) return ack?.({ ok: false, error: "اللاعب الخارج من اللعبة لا يصوت" });
+    if (r.vote.votes.has(socket.id)) return ack?.({ ok: false, error: "لقد صوّت بالفعل" });
+
+    const target = String(targetId || "");
+    const candidates = getVoteCandidates(r, r.vote.round).map(p => p.id);
+
+    if (target === socket.id) return ack?.({ ok: false, error: "لا يمكنك التصويت لنفسك" });
+    if (target === "__NONE__") {
+      if (r.vote.round !== 2) return ack?.({ ok: false, error: "خيار لا أحد متاح في التصويت النهائي فقط" });
+    } else if (!candidates.includes(target)) {
+      return ack?.({ ok: false, error: "اختيار غير صالح" });
+    }
+
+    const weight = voter.role === "mayor" ? 3 : 1;
+    r.vote.votes.set(socket.id, { targetId: target, weight });
+
+    ack?.({ ok: true, weight });
+    emitVoteState(r);
+    finishVote(r);
+  });
+
+  socket.on("vote:finish", (_, ack) => {
+    const code = socket.data.room;
+    const r = code && rooms.get(code);
+    if (!r || r.host !== socket.id) return ack?.({ ok: false, error: "المضيف فقط يمكنه إنهاء التصويت" });
+    if (!r.vote?.active) return ack?.({ ok: false, error: "لا يوجد تصويت نشط" });
+
+    const alive = getAlivePlayers(r);
+    if (r.vote.votes.size < alive.length) {
+      return ack?.({ ok: false, error: `بقي ${alive.length - r.vote.votes.size} لاعب لم يصوّت` });
+    }
+
+    finishVote(r);
     ack?.({ ok: true });
   });
 
