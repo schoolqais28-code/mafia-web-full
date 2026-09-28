@@ -1,8 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 const String siteUrl =
     'https://mafia-web-admin-production.up.railway.app/';
@@ -42,8 +41,7 @@ class MafiaWebApp extends StatefulWidget {
 }
 
 class _MafiaWebAppState extends State<MafiaWebApp> {
-  InAppWebViewController? _webViewController;
-  PullToRefreshController? _pullToRefreshController;
+  late final WebViewController _controller;
   double _progress = 0;
   bool _pageError = false;
 
@@ -51,21 +49,48 @@ class _MafiaWebAppState extends State<MafiaWebApp> {
   void initState() {
     super.initState();
 
-    _pullToRefreshController = PullToRefreshController(
-      settings: PullToRefreshSettings(
-        color: const Color(0xFFD11E2F),
-        backgroundColor: const Color(0xFF100E13),
-      ),
-      onRefresh: () async {
-        await _webViewController?.reload();
-      },
-    );
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0xFF08070B))
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onProgress: (progress) {
+            if (mounted) {
+              setState(() => _progress = progress / 100);
+            }
+          },
+          onPageStarted: (_) {
+            if (mounted) {
+              setState(() => _pageError = false);
+            }
+          },
+          onWebResourceError: (error) {
+            if (error.isForMainFrame == true && mounted) {
+              setState(() => _pageError = true);
+            }
+          },
+        ),
+      );
+
+    final platform = _controller.platform;
+    if (platform is AndroidWebViewController) {
+      platform.setMediaPlaybackRequiresUserGesture(false);
+      platform.setOnPlatformPermissionRequest((request) async {
+        final microphone = await Permission.microphone.request();
+        if (microphone.isGranted) {
+          await request.grant();
+        } else {
+          await request.deny();
+        }
+      });
+    }
+
+    _controller.loadRequest(Uri.parse(siteUrl));
   }
 
   Future<bool> _handleBack() async {
-    final controller = _webViewController;
-    if (controller != null && await controller.canGoBack()) {
-      await controller.goBack();
+    if (await _controller.canGoBack()) {
+      await _controller.goBack();
       return false;
     }
     return true;
@@ -86,64 +111,7 @@ class _MafiaWebAppState extends State<MafiaWebApp> {
         body: SafeArea(
           child: Stack(
             children: [
-              InAppWebView(
-                initialUrlRequest: URLRequest(url: WebUri(siteUrl)),
-                initialSettings: InAppWebViewSettings(
-                  javaScriptEnabled: true,
-                  domStorageEnabled: true,
-                  databaseEnabled: true,
-                  mediaPlaybackRequiresUserGesture: false,
-                  allowsInlineMediaPlayback: true,
-                  useHybridComposition: true,
-                  transparentBackground: false,
-                  supportZoom: false,
-                  builtInZoomControls: false,
-                  displayZoomControls: false,
-                  thirdPartyCookiesEnabled: true,
-                  cacheEnabled: true,
-                  hardwareAcceleration: true,
-                ),
-                pullToRefreshController: _pullToRefreshController,
-                onWebViewCreated: (controller) {
-                  _webViewController = controller;
-                },
-                onLoadStart: (controller, url) {
-                  if (mounted) {
-                    setState(() => _pageError = false);
-                  }
-                },
-                onProgressChanged: (controller, progress) {
-                  if (progress == 100) {
-                    _pullToRefreshController?.endRefreshing();
-                  }
-                  if (mounted) {
-                    setState(() => _progress = progress / 100);
-                  }
-                },
-                onLoadStop: (controller, url) async {
-                  _pullToRefreshController?.endRefreshing();
-                },
-                onReceivedError: (controller, request, error) {
-                  if (request.isForMainFrame ?? false) {
-                    if (mounted) {
-                      setState(() => _pageError = true);
-                    }
-                  }
-                },
-                onPermissionRequest: (controller, request) async {
-                  final mic = await Permission.microphone.request();
-                  if (mic.isGranted) {
-                    return PermissionResponse(
-                      resources: request.resources,
-                      action: PermissionResponseAction.GRANT,
-                    );
-                  }
-                  return PermissionResponse(
-                    resources: request.resources,
-                    action: PermissionResponseAction.DENY,
-                  );
-                },
-              ),
+              WebViewWidget(controller: _controller),
               if (_progress < 1)
                 LinearProgressIndicator(
                   value: _progress,
@@ -186,10 +154,7 @@ class _MafiaWebAppState extends State<MafiaWebApp> {
                             FilledButton.icon(
                               onPressed: () {
                                 setState(() => _pageError = false);
-                                _webViewController?.loadUrl(
-                                  urlRequest:
-                                      URLRequest(url: WebUri(siteUrl)),
-                                );
+                                _controller.loadRequest(Uri.parse(siteUrl));
                               },
                               icon: const Icon(Icons.refresh),
                               label: const Text('إعادة المحاولة'),
