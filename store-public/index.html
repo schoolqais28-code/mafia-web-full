@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>متجر التنين</title>
+  <meta name="description" content="منتجات وأسعار صفحة التنين">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="brand-mark">🐉</span>
+      <span id="brandName">متجر التنين</span>
+    </a>
+    <a id="facebookLink" class="facebook-btn" href="https://www.facebook.com/profile.php?id=61572937965817" target="_blank" rel="noreferrer">صفحة فيسبوك</a>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-content">
+        <span class="eyebrow">المنتجات والأسعار في مكان واحد</span>
+        <h1>اختار المنتج المناسب بسهولة</h1>
+        <p>ابحث بالاسم أو تصفح التصنيفات وشاهد السعر والصورة وتفاصيل المنتج.</p>
+      </div>
+      <div class="hero-card">
+        <strong id="productCount">0</strong>
+        <span>منتج متوفر</span>
+      </div>
+    </section>
+
+    <section class="controls">
+      <label class="search-box">
+        <span>⌕</span>
+        <input id="searchInput" type="search" placeholder="ابحث عن منتج">
+      </label>
+      <div id="categories" class="categories"></div>
+    </section>
+
+    <section>
+      <div id="status" class="status">جاري تحميل المنتجات...</div>
+      <div id="products" class="products-grid"></div>
+    </section>
+  </main>
+
+  <footer>
+    <span id="footerName">متجر التنين</span>
+    <span>الأسعار المعروضة حسب قاعدة بيانات المتجر</span>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>
