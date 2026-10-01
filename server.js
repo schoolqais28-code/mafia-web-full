@@ -15,8 +15,7 @@ if (!process.env.DATABASE_URL) {
 }
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false
+  connectionString: process.env.DATABASE_URL
 });
 
 app.use(express.json({ limit: "3mb" }));
@@ -281,7 +280,7 @@ app.get("/admin", (_req, res) => {
   res.sendFile(path.join(__dirname, "store-public", "admin.html"));
 });
 
-app.get("*", (_req, res) => {
+app.use((_req, res) => {
   res.sendFile(path.join(__dirname, "store-public", "index.html"));
 });
 
