@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>إدارة متجر التنين</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box}body{margin:0;font-family:Tajawal,sans-serif;background:#07111f;color:#f5f8fc}
+    main{width:min(1100px,calc(100% - 28px));margin:30px auto 70px}
+    a{color:#ffad63}.panel{background:#0c1b2d;border:1px solid rgba(255,255,255,.1);border-radius:22px;padding:20px;margin-bottom:18px}
+    h1,h2{margin-top:0}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    input,textarea,button{width:100%;font:inherit;border-radius:12px;border:1px solid rgba(255,255,255,.12);padding:11px 12px}
+    input,textarea{background:#10253d;color:#fff}textarea{min-height:90px;resize:vertical}
+    button{cursor:pointer;border:0;background:#ff7a00;color:#fff;font-weight:800}.secondary{background:#1a3552}.danger{background:#b52d39}
+    .actions{display:flex;gap:8px}.actions button{width:auto}.full{grid-column:1/-1}
+    table{width:100%;border-collapse:collapse}th,td{text-align:right;padding:10px;border-bottom:1px solid rgba(255,255,255,.08);vertical-align:top}
+    .thumb{width:52px;height:52px;object-fit:cover;border-radius:9px;background:#14283d}.muted{color:#9fb0c4}.message{min-height:24px;color:#ffbd7d}
+    @media(max-width:700px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.table-wrap{overflow:auto}}
+  </style>
+</head>
+<body>
+<main>
+  <div class="panel">
+    <a href="/">← العودة للمتجر</a>
+    <h1>إدارة المنتجات</h1>
+    <p class="muted">أدخل مفتاح الإدارة ثم أضف المنتجات أو استوردها دفعة واحدة.</p>
+    <input id="key" type="password" placeholder="ADMIN_KEY">
+  </div>
+
+  <form id="form" class="panel">
+    <h2 id="formTitle">إضافة منتج</h2>
+    <input id="id" type="hidden">
+    <div class="grid">
+      <input id="name" placeholder="اسم المنتج" required>
+      <input id="price" type="number" min="0" step="0.01" placeholder="السعر بالدينار" required>
+      <input id="category" placeholder="التصنيف" value="عام">
+      <input id="image" placeholder="رابط صورة المنتج">
+      <input id="source" class="full" placeholder="رابط منشور المنتج على فيسبوك">
+      <textarea id="description" class="full" placeholder="وصف المنتج"></textarea>
+      <div class="actions full">
+        <button type="submit">حفظ</button>
+        <button type="button" id="cancel" class="secondary">إلغاء التعديل</button>
+      </div>
+    </div>
+    <div id="message" class="message"></div>
+  </form>
+
+  <div class="panel">
+    <h2>استيراد منتجات دفعة واحدة</h2>
+    <p class="muted">الصيغة: مصفوفة JSON تحتوي name و price_jod ويمكن إضافة image_url و category و description و source_url.</p>
+    <textarea id="importBox" placeholder='[{"name":"اسم المنتج","price_jod":10,"image_url":"https://..."}]'></textarea>
+    <div class="actions" style="margin-top:10px">
+      <button id="importBtn" type="button">استيراد</button>
+      <button id="replaceBtn" type="button" class="danger">استبدال كل المنتجات</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="actions" style="justify-content:space-between;align-items:center">
+      <h2 style="margin:0">المنتجات الحالية</h2>
+      <button id="refresh" type="button" class="secondary">تحديث</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>صورة</th><th>المنتج</th><th>السعر</th><th>التصنيف</th><th>إجراءات</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (v="") => String(v).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+const api = async (url, options={}) => {
+  const key = $("key").value || localStorage.getItem("dragon_admin_key") || "";
+  if ($("key").value) localStorage.setItem("dragon_admin_key", $("key").value);
+  const res = await fetch(url, { ...options, headers: { "Content-Type":"application/json", "x-admin-key":key, ...(options.headers||{}) } });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.error || "حدث خطأ");
+  return data;
+};
+function resetForm(){ $("form").reset(); $("id").value=""; $("category").value="عام"; $("formTitle").textContent="إضافة منتج"; }
+async function load(){
+  try{
+    const items = await api("/api/admin/products");
+    $("rows").innerHTML = items.map(p => `
+      <tr>
+        <td>${p.image_url ? '<img class="thumb" src="'+esc(p.image_url)+'">' : "—"}</td>
+        <td><strong>${esc(p.name)}</strong><br><span class="muted">${esc(p.description||"")}</span></td>
+        <td>${Number(p.price_jod).toFixed(2)} د.أ</td>
+        <td>${esc(p.category)}</td>
+        <td><div class="actions">
+          <button class="secondary" onclick='editProduct(${JSON.stringify(p)})'>تعديل</button>
+          <button class="danger" onclick="removeProduct(${p.id})">حذف</button>
+        </div></td>
+      </tr>`).join("") || '<tr><td colspan="5" class="muted">لا توجد منتجات بعد</td></tr>';
+  }catch(e){ $("message").textContent=e.message; }
+}
+window.editProduct = (p) => {
+  $("id").value=p.id; $("name").value=p.name; $("price").value=p.price_jod; $("category").value=p.category||"عام";
+  $("image").value=p.image_url||""; $("source").value=p.source_url||""; $("description").value=p.description||"";
+  $("formTitle").textContent="تعديل المنتج"; scrollTo({top:0,behavior:"smooth"});
+};
+window.removeProduct = async (id) => { if(!confirm("حذف المنتج؟")) return; await api("/api/admin/products/"+id,{method:"DELETE"}); load(); };
+$("cancel").onclick = resetForm;
+$("refresh").onclick = load;
+$("key").value = localStorage.getItem("dragon_admin_key") || "";
+$("form").addEventListener("submit", async (e)=>{
+  e.preventDefault(); $("message").textContent="";
+  const id=$("id").value;
+  const body={name:$("name").value,price_jod:$("price").value,category:$("category").value,image_url:$("image").value,source_url:$("source").value,description:$("description").value};
+  try{
+    await api(id?"/api/admin/products/"+id:"/api/admin/products",{method:id?"PUT":"POST",body:JSON.stringify(body)});
+    $("message").textContent="تم الحفظ"; resetForm(); load();
+  }catch(err){ $("message").textContent=err.message; }
+});
+async function doImport(replace){
+  try{
+    const products=JSON.parse($("importBox").value);
+    const result=await api("/api/admin/import",{method:"POST",body:JSON.stringify({products,replace})});
+    alert("تم استيراد "+result.imported+" منتج"); load();
+  }catch(e){ alert(e.message); }
+}
+$("importBtn").onclick=()=>doImport(false);
+$("replaceBtn").onclick=()=>{if(confirm("سيتم حذف المنتجات الحالية واستبدالها. متابعة؟")) doImport(true)};
+if($("key").value) load();
+</script>
+</body>
+</html>
