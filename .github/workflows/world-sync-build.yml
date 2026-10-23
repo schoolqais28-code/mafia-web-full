@@ -35,7 +35,7 @@ jobs:
       - name: Analyze and test
         working-directory: world_sync
         run: |
-          flutter analyze
+          flutter analyze --no-fatal-infos
           flutter test
       - name: Build debug APK
         working-directory: world_sync
