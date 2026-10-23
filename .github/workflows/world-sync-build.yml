@@ -1,0 +1,48 @@
+name: WORLD SYNC Android APK
+on:
+  push:
+    branches:
+      - world-sync-apk-test
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Unpack WORLD SYNC project
+        run: |
+          mkdir -p world_sync
+          base64 -d android-build/world-sync-src.tar.xz.b64 | tar -xJf - -C world_sync
+      - name: Create Android project
+        working-directory: world_sync
+        run: flutter create --project-name world_sync --platforms=android .
+      - name: Install dependencies
+        working-directory: world_sync
+        run: flutter pub get
+      - name: Analyze and test
+        working-directory: world_sync
+        run: |
+          flutter analyze
+          flutter test
+      - name: Build debug APK
+        working-directory: world_sync
+        run: flutter build apk --debug
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: WORLD_SYNC_v0_1_APK
+          path: world_sync/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
